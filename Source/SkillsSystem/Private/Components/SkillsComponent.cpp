@@ -4,6 +4,7 @@
 
 #include "Module/SkillsSystemModule.h"
 #include "LogSystem.h"
+#include "Data/SkillTypeData.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/ActorChannel.h"
 
@@ -20,7 +21,10 @@ void USkillsComponent::BeginPlay()
 
 	if(GetOwner()->HasAuthority())
 	{
-		
+		for(USkillTypeData* SkillTypeData : StartSkills)
+		{
+			AddSkill(SkillTypeData);
+		}
 	}
 }
 
@@ -46,6 +50,42 @@ void USkillsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(USkillsComponent, Skills)
 }
 
+void USkillsComponent::AddSkill(USkillTypeData* SkillData)
+{
+	if(!SkillData || !SkillData->SkillClass) return;
+	if(GetSkill<USkill>(SkillData)) return;
+
+	USkill* Skill = NewObject<USkill>(this, SkillData->SkillClass);
+	Skill->OnSkillUsed.AddUniqueDynamic(this, &USkillsComponent::SkillUsed);
+
+	Skill->InitSkill();
+
+	Skills.Add(Skill);
+
+	OnSkillAdded.Broadcast(Skill);
+}
+
+void USkillsComponent::RemoveSkill(USkillTypeData* SkillData)
+{
+	if(USkill* Skill = GetSkill<USkill>(SkillData))
+	{
+		Skill->OnSkillUsed.RemoveDynamic(this, &USkillsComponent::SkillUsed);
+		Skills.Remove(Skill);
+
+		OnSkillRemoved.Broadcast(Skill);
+
+		Skill->Rename(nullptr, nullptr);
+	}
+}
+
+void USkillsComponent::UseSkill(USkillTypeData* SkillData)
+{
+	if(USkill* Skill = GetSkill<USkill>(SkillData))
+	{
+		Skill->TryUseSkill();
+	}
+}
+
 USkill* USkillsComponent::GetSkill(TSubclassOf<USkill> Class, USkillTypeData* Type) const
 {
 	USkill* const* Out = Skills.FindByPredicate([&](const USkill* Src)
@@ -54,4 +94,9 @@ USkill* USkillsComponent::GetSkill(TSubclassOf<USkill> Class, USkillTypeData* Ty
 	});
 	
 	return Out ? *Out : nullptr;
+}
+
+void USkillsComponent::SkillUsed(USkill* Skill)
+{
+	OnSkillUsed.Broadcast(Skill);
 }

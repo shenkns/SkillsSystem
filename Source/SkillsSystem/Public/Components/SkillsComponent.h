@@ -18,13 +18,24 @@ class SKILLSSYSTEM_API USkillsComponent : public UActorComponent
 public:
 	
 	USkillsComponent();
+
+public:
+
+	UPROPERTY(BlueprintAssignable, Category = "Skills")
+	FSkillEvent OnSkillAdded;
+	
+	UPROPERTY(BlueprintAssignable, Category = "Skills")
+	FSkillEvent OnSkillRemoved;
+	
+	UPROPERTY(BlueprintAssignable, Category = "Skills")
+	FSkillEvent OnSkillUsed;
 	
 protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Skills")
-	TArray<USkillTypeData*> SkillsTypes;
+	TArray<USkillTypeData*> StartSkills;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(Replicated, VisibleInstanceOnly, Category = "Skills")
 	TArray<USkill*> Skills;
 
 public:
@@ -35,18 +46,35 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Skills")
+	void AddSkill(USkillTypeData* SkillData);
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Skills")
+	void RemoveSkill(USkillTypeData* SkillData);
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Skills")
+	void UseSkill(USkillTypeData* SkillData);
+
 	// Getters
-	UFUNCTION(BlueprintPure, Category = "Effects", meta = (CompactNodeTitle = "Effect", DeterminesOutputType = "Class"))
+	UFUNCTION(BlueprintPure, Category = "Skills", meta = (CompactNodeTitle = "Skills"))
+	TArray<USkill*> GetSkills() const { return Skills; }
+	
+	UFUNCTION(BlueprintPure, Category = "Skills", meta = (CompactNodeTitle = "Skill", DeterminesOutputType = "Class"))
 	USkill* GetSkill(TSubclassOf<USkill> Class, USkillTypeData* Type) const;
 
 	template<typename T>
 	T* GetSkill(USkillTypeData* Type) const;
+
+private:
+
+	UFUNCTION()
+	void SkillUsed(USkill* Skill);
 };
 
 template <typename T>
 T* USkillsComponent::GetSkill(USkillTypeData* Type) const
 {
-	const USkill* Out = Skills.FindByPredicate([&](const USkill* Src)
+	USkill* const* Out = Skills.FindByPredicate([&](const USkill* Src)
 	{
 		return Src->GetType() == Type;
 	});
