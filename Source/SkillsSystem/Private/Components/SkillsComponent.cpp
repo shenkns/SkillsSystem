@@ -56,23 +56,25 @@ void USkillsComponent::AddSkill(USkillTypeData* SkillData)
 	if(GetSkill<USkill>(SkillData)) return;
 
 	USkill* Skill = NewObject<USkill>(this, SkillData->SkillClass);
-	Skill->OnSkillUsed.AddUniqueDynamic(this, &USkillsComponent::SkillUsed);
+	Skill->OnSkillUsed.AddUniqueDynamic(this, &USkillsComponent::MulticastSkillUsed);
 
 	Skill->InitSkill();
 
 	Skills.Add(Skill);
 
 	OnSkillAdded.Broadcast(Skill);
+	MulticastSkillAdded(Skill);
 }
 
 void USkillsComponent::RemoveSkill(USkillTypeData* SkillData)
 {
 	if(USkill* Skill = GetSkill<USkill>(SkillData))
 	{
-		Skill->OnSkillUsed.RemoveDynamic(this, &USkillsComponent::SkillUsed);
+		Skill->OnSkillUsed.RemoveDynamic(this, &USkillsComponent::MulticastSkillUsed);
 		Skills.Remove(Skill);
 
 		OnSkillRemoved.Broadcast(Skill);
+		MulticastSkillRemoved(Skill);
 
 		Skill->Rename(nullptr, nullptr);
 	}
@@ -96,7 +98,23 @@ USkill* USkillsComponent::GetSkill(TSubclassOf<USkill> Class, USkillTypeData* Ty
 	return Out ? *Out : nullptr;
 }
 
-void USkillsComponent::SkillUsed(USkill* Skill)
+void USkillsComponent::MulticastSkillUsed_Implementation(USkill* UsedSkill)
 {
-	OnSkillUsed.Broadcast(Skill);
+	OnSkillUsed.Broadcast(UsedSkill);
+}
+
+void USkillsComponent::MulticastSkillRemoved_Implementation(USkill* RemovedSkill)
+{
+	if(!GetOwner()->HasAuthority())
+	{
+		OnSkillRemoved.Broadcast(RemovedSkill);
+	}
+}
+
+void USkillsComponent::MulticastSkillAdded_Implementation(USkill* AddedSkill)
+{
+	if(!GetOwner()->HasAuthority())
+	{
+		OnSkillAdded.Broadcast(AddedSkill);
+	}
 }

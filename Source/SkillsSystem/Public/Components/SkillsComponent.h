@@ -66,9 +66,15 @@ public:
 	T* GetSkill(USkillTypeData* Type) const;
 
 private:
+	
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastSkillAdded(USkill* AddedSkill);
 
-	UFUNCTION()
-	void SkillUsed(USkill* Skill);
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastSkillRemoved(USkill* RemovedSkill);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastSkillUsed(USkill* UsedSkill);
 };
 
 template <typename T>
